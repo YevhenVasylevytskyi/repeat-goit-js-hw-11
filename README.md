@@ -1,1 +1,1 @@
-# repeat-goit-js-hw-11
+# goit-hometask
