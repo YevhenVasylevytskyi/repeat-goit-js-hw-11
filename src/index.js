@@ -1,59 +1,110 @@
-import photoGallery from './templates/photoGallery.hbs';
-import axios from 'axios'
-import { Notify } from 'notiflix';
 import './css/styles.css';
+import PhotoApiService from './apiService';
+import { Notify } from 'notiflix/build/notiflix-notify-aio';
 
-const API_KEY = '34753314-06c64cb5991208f98d3d609c3';
-const BASE_URL = 'https://pixabay.com/api/';
+const searchForm = document.querySelector('.search-form');
+const galleryContainer = document.querySelector('.gallery');
+const loadMoreBtn = document.querySelector('.load-more');
 
+let isShown = 0;
+const photoApiService = new PhotoApiService();
 
-const inputForm = document.querySelector('#search-form');
-const query = ''
+searchForm.addEventListener('submit', onSearch);
+loadMoreBtn.addEventListener('click', onLoadMore);
 
-inputForm.addEventListener("submit", handleSubmit);
+const options = {
+  rootMargin: '50px',
+  root: null,
+  threshold: 0.3,
+};
+const observer = new IntersectionObserver(onLoadMore, options);
 
-function handleSubmit(event) {
-    event.preventDefault();
+function onSearch(e) {
+  e.preventDefault();
 
-    const query = event.currentTarget.searchQuery.value;
+  galleryContainer.innerHTML = '';
+  photoApiService.query = e.currentTarget.elements.searchQuery.value.trim();
+  photoApiService.resetPage();
 
-    console.log(query)
+  if (photoApiService.query === '') {
+    Notify.warning('Please, fill the main field');
+    return;
+  }
 
-    fetchPictures(query)
-
+  isShown = 0;
+  fetchGallery();
 }
 
-function fetchPictures(query) {
-
-    axios.get(`${BASE_URL}/?key=${API_KEY}&q=${query}&image_type=photo&orientation=horizontal`)
-        .then(function (response) {
-            // обработка успешного запроса
-            return response.data;
-        })
-        .then(data => {
-            inputForm.insertAdjacentHTML('afterend', ' ');
-            // console.log(data);
-            renderQuery(data)
-        })
-
-    // fetch(`${BASE_URL}/?key=${API_KEY}&q=${query}&image_type=photo&orientation=horizontal`).then(response => {
-    //     // console.log(response);
-
-    //     //&safesearch=true
-
-    //     return response.json();
-    // }).then(data => {
-    //   console.log(data.hits);
-    //     renderQuery(data)
-    // })
+function onLoadMore() {
+  photoApiService.incrementPage();
+  fetchGallery();
 }
 
-const renderQuery = ({ hits }) => {
-    console.log(hits.length)
-    if (hits.length === 0) {
-        Notify.warning("Sorry, there are no images matching your search query. Please try again.");
-    }
-    
-    const result = photoGallery(hits)
-    inputForm.insertAdjacentHTML('afterend', result);
+async function fetchGallery() {
+  loadMoreBtn.classList.add('is-hidden');
+
+  const response = await photoApiService.fetchGallery();
+  const { hits, total } = response;
+  isShown += hits.length;
+
+  if (hits.length === 0) {
+    Notify.failure(
+      `Sorry, there are no images matching your search query. Please try again.`
+    );
+    loadMoreBtn.classList.add('is-hidden');
+    return;
+  }
+
+  onRenderGallery(hits);
+  isShown += hits.length;
+
+  if (isShown < total) {
+    Notify.success(`Hooray! We found ${total} images !!!`);
+    loadMoreBtn.classList.remove('is-hidden');
+  }
+
+  if (isShown >= total) {
+    Notify.info("We're sorry, but you've reached the end of search results.");
+  }
+}
+
+function onRenderGallery(elements) {
+  const markup = elements
+    .map(
+      ({
+        webformatURL,
+        largeImageURL,
+        tags,
+        likes,
+        views,
+        comments,
+        downloads,
+      }) => {
+        return `<div class="photo-card">
+    <a href="${largeImageURL}">
+      <img class="photo-img" src="${webformatURL}" alt="${tags}" loading="lazy" />
+    </a>
+    <div class="info">
+      <p class="info-item">
+        <b>Likes</b>
+        ${likes}
+      </p>
+      <p class="info-item">
+        <b>Views</b>
+        ${views}
+      </p>
+      <p class="info-item">
+        <b>Comments</b>
+        ${comments}
+      </p>
+      <p class="info-item">
+        <b>Downloads</b>
+        ${downloads}
+      </p>
+    </div>
+    </div>`;
+      }
+    )
+    .join('');
+  galleryContainer.insertAdjacentHTML('beforeend', markup);
 }
