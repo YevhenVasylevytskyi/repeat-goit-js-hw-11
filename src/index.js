@@ -1,27 +1,59 @@
-import pictureItem from './templates/pictureItem.hbs';
-const API_KEY = '23013902-f53df9bcd1cd3c8e660b93280';
+import photoGallery from './templates/photoGallery.hbs';
+import axios from 'axios'
+import { Notify } from 'notiflix';
+import './css/styles.css';
+
+const API_KEY = '34753314-06c64cb5991208f98d3d609c3';
 const BASE_URL = 'https://pixabay.com/api/';
 
 
 const inputForm = document.querySelector('#search-form');
+const query = ''
 
-// console.log(inputForm)
+inputForm.addEventListener("submit", handleSubmit);
+
+function handleSubmit(event) {
+    event.preventDefault();
+
+    const query = event.currentTarget.searchQuery.value;
+
+    console.log(query)
+
+    fetchPictures(query)
+
+}
 
 function fetchPictures(query) {
 
-    fetch(`${BASE_URL}/?key=${API_KEY}&q=${query}`).then(response => {
-        // console.log(response);
+    axios.get(`${BASE_URL}/?key=${API_KEY}&q=${query}&image_type=photo&orientation=horizontal`)
+        .then(function (response) {
+            // обработка успешного запроса
+            return response.data;
+        })
+        .then(data => {
+            inputForm.insertAdjacentHTML('afterend', ' ');
+            // console.log(data);
+            renderQuery(data)
+        })
 
-        return response.json();
-    }).then(data => {
-      console.log(data.hits);
-        renderQuery(data)
-    })
+    // fetch(`${BASE_URL}/?key=${API_KEY}&q=${query}&image_type=photo&orientation=horizontal`).then(response => {
+    //     // console.log(response);
+
+    //     //&safesearch=true
+
+    //     return response.json();
+    // }).then(data => {
+    //   console.log(data.hits);
+    //     renderQuery(data)
+    // })
 }
 
-fetchPictures('cat')
-
 const renderQuery = ({ hits }) => {
-    const result = pictureItem(hits)
+    console.log(hits.length)
+    if (hits.length === 0) {
+        Notify.warning("Sorry, there are no images matching your search query. Please try again.");
+    }
+    
+    const result = photoGallery(hits)
     inputForm.insertAdjacentHTML('afterend', result);
 }
